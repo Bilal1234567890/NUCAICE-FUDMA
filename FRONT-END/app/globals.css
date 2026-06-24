@@ -1,0 +1,226 @@
+@import "tailwindcss";
+
+:root {
+  --background: #030712;
+  --foreground: #f1f5f9;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Space Grotesk', sans-serif;
+}
+
+/* ====================== DARK MODE (Default - NUCAICE Theme) ====================== */
+.dark {
+  --background: #030712;
+  --foreground: #f1f5f9;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* ====================== LIGHT MODE ====================== */
+.light {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+/* ====================== TYPOGRAPHY ====================== */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.025em;
+}
+
+/* ====================== SIDEBAR & NAVIGATION ====================== */
+.sidebar {
+  background-color: #0a0f1c;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 4px 0 30px -10px rgba(0, 0, 0, 0.6);
+}
+
+.light .sidebar {
+  background-color: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  box-shadow: 4px 0 25px -10px rgba(0, 0, 0, 0.1);
+}
+
+.nav-divider {
+  position: relative;
+  padding: 0.5rem 0 0.75rem;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.nav-divider::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(to right, rgba(103, 232, 249, 0.25), transparent);
+}
+
+.nav-link {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 12px;
+}
+
+.nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  transform: translateX(4px);
+}
+
+.light .nav-link:hover {
+  background-color: #f1f5f9;
+}
+
+.nav-chevron {
+  transition: transform 0.3s ease;
+  font-size: 1.1rem;
+  opacity: 0.7;
+}
+
+.submenu button {
+  padding: 8px 16px;
+  width: 100%;
+  text-align: left;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.submenu button:hover {
+  background-color: rgba(103, 232, 249, 0.12);
+  color: #67e8f9;
+}
+
+/* Logo Styling */
+.logo-hex {
+  background: linear-gradient(135deg, #22d3ee, #06b6d4);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.75rem;
+  border: 3px solid #67e8f9;
+  border-radius: 14px;
+  box-shadow: 0 0 25px rgba(103, 232, 249, 0.5);
+}
+
+.light .logo-hex {
+  background: linear-gradient(135deg, #0891b2, #0e7490);
+  border-color: #22d3ee;
+}
+
+.brand-glow {
+  position: absolute;
+  inset: -20px;
+  background: radial-gradient(circle, rgba(103, 232, 249, 0.25) 0%, transparent 70%);
+  filter: blur(20px);
+  z-index: -1;
+}
+
+/* Content Area */
+.content-area {
+  min-height: 100vh;
+}
+
+.prose h1 {
+  font-family: var(--font-display);
+  letter-spacing: -0.04em;
+}
+
+/* Mobile Header */
+.mobile-header {
+  background: rgba(3, 7, 18, 0.95);
+  backdrop-filter: blur(12px);
+}
+
+.light .mobile-header {
+  background: rgba(248, 250, 252, 0.95);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Coordinator Card */
+.coordinator-card {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.light .coordinator-card {
+  background: rgba(15, 23, 42, 0.05);
+}
+
+/* ====================== ANIMATIONS & SCROLLBAR ====================== */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.content-area > div {
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+/* Sidebar Scrollbar */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(103, 232, 249, 0.3);
+  border-radius: 20px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(103, 232, 249, 0.5);
+}
+
+.light .sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.2);
+}
+.light .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.4);
+}
+
+/* Utility Classes */
+.fudma-badge {
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+/* This input style is from Registration.tsx */
+.green-shadow-input {
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.15), inset 0 0 20px rgba(34, 197, 94, 0.05);
+}
+.green-shadow-input:focus {
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.25), inset 0 0 20px rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+/* Light mode specific overrides for content visibility */
+.light-mode-text {
+  color: #1e293b !important;
+}
+
+.light-mode-text-secondary {
+  color: #334155 !important;
+}
+
+.light-mode-text-muted {
+  color: #475569 !important;
+}
+
+.light-mode-border {
+  border-color: #cbd5e1 !important;
+}
+
+.light-mode-bg {
+  background-color: #ffffff !important;
+}
+
+.light-mode-bg-subtle {
+  background-color: #f1f5f9 !important;
+}

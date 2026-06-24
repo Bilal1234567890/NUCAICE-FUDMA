@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+SQLAlchemy
+pymysql
+python-dotenv
+pydantic[email]
+passlib
+bcrypt
+requests
+apscheduler
