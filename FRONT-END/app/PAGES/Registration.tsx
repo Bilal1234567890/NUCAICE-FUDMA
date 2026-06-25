@@ -115,7 +115,7 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
     };
   }, []);
 
-  /* ── Success Countdown ── */
+  /* ── Countdown ── */
   useEffect(() => {
     if (showSuccess && countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -125,7 +125,7 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
     }
   }, [showSuccess, countdown, onGoToLogin]);
 
-  /* ── FUDMA Logo (Left) ── */
+  /* ── FUDMA Logo ── */
   useEffect(() => {
     if (!fudmaLogoRef.current) return;
     const container = fudmaLogoRef.current;
@@ -160,15 +160,10 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
       blinkTime += 0.016;
       const cycle = (blinkTime % 6) / 6;
       let opacity = 1;
-      if (cycle < 0.33) {
-        opacity = 1;
-      } else if (cycle < 0.5) {
-        opacity = 1 - (cycle - 0.33) / 0.17;
-      } else if (cycle < 0.83) {
-        opacity = 0;
-      } else {
-        opacity = (cycle - 0.83) / 0.17;
-      }
+      if (cycle < 0.33) opacity = 1;
+      else if (cycle < 0.5) opacity = 1 - (cycle - 0.33) / 0.17;
+      else if (cycle < 0.83) opacity = 0;
+      else opacity = (cycle - 0.83) / 0.17;
       material.opacity = opacity;
       logoMesh.rotation.y += 0.005;
       renderer.render(scene, camera);
@@ -181,13 +176,11 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
       geometry.dispose();
       material.dispose();
       texture.dispose();
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
+      if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
     };
   }, []);
 
-  /* ── AI Logo (Right) ── */
+  /* ── AI Logo ── */
   useEffect(() => {
     if (!aiLogoRef.current) return;
     const container = aiLogoRef.current;
@@ -234,15 +227,10 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
       blinkTime += 0.016;
       const cycle = ((blinkTime + 3) % 6) / 6;
       let opacity = 1;
-      if (cycle < 0.33) {
-        opacity = 1;
-      } else if (cycle < 0.5) {
-        opacity = 1 - (cycle - 0.33) / 0.17;
-      } else if (cycle < 0.83) {
-        opacity = 0;
-      } else {
-        opacity = (cycle - 0.83) / 0.17;
-      }
+      if (cycle < 0.33) opacity = 1;
+      else if (cycle < 0.5) opacity = 1 - (cycle - 0.33) / 0.17;
+      else if (cycle < 0.83) opacity = 0;
+      else opacity = (cycle - 0.83) / 0.17;
       material.opacity = opacity;
       logoMesh.rotation.y += 0.005;
       renderer.render(scene, camera);
@@ -255,13 +243,11 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
       geometry.dispose();
       material.dispose();
       texture.dispose();
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
+      if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
     };
   }, []);
 
-  /* ── Animated 3D Border Canvas with Variable Speed ── */
+  /* ── 3D Border ── */
   useEffect(() => {
     if (!borderCanvasRef.current) return;
     const canvas = borderCanvasRef.current;
@@ -285,10 +271,8 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
     const drawBorder = () => {
       animId = requestAnimationFrame(drawBorder);
       time += 0.016;
-
       const cycleDuration = 6;
       const cyclePosition = (time % cycleDuration) / cycleDuration;
-
       let speedMultiplier: number;
       if (cyclePosition < 0.5) {
         const fastPhase = cyclePosition * 2;
@@ -297,11 +281,9 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
         const slowPhase = (cyclePosition - 0.5) * 2;
         speedMultiplier = 0.5 + Math.sin(slowPhase * Math.PI) * 0.3;
       }
-
       offset += 2 * speedMultiplier;
 
       ctx.clearRect(0, 0, W, H);
-
       const borderWidth = 3;
       const cornerRadius = 16;
       const perimeter = 2 * (W + H) - 8 * cornerRadius + 2 * Math.PI * cornerRadius;
@@ -313,14 +295,11 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
 
       for (let i = 0; i < colors.length; i++) {
         const gradient = ctx.createLinearGradient(0, 0, W, H);
-
         colors.forEach((color, idx) => {
           gradient.addColorStop((idx / colors.length + offset / perimeter) % 1, color);
         });
-
         ctx.strokeStyle = gradient;
         ctx.beginPath();
-
         ctx.moveTo(cornerRadius, 0);
         ctx.lineTo(W - cornerRadius, 0);
         ctx.arcTo(W, 0, W, cornerRadius, cornerRadius);
@@ -331,17 +310,14 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
         ctx.lineTo(0, cornerRadius);
         ctx.arcTo(0, 0, cornerRadius, 0, cornerRadius);
         ctx.closePath();
-
         ctx.setLineDash([segmentLength * 0.6, segmentLength * 0.4]);
         ctx.lineDashOffset = -offset;
         ctx.stroke();
       }
-
       ctx.setLineDash([]);
     };
 
     drawBorder();
-
     return () => cancelAnimationFrame(animId);
   }, []);
 
@@ -384,7 +360,6 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
     setError('');
 
     try {
-      // 👇 NEW: Use environment variable with fallback for local development
       const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
       const response = await fetch(`${apiBase}/api/register`, {
@@ -422,25 +397,25 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#030712]/80 backdrop-blur-sm">
       {/* Three.js Background */}
       <canvas ref={bgCanvasRef} className="fixed inset-0 z-0 pointer-events-none" aria-hidden />
 
-      {/* Animated Border Container - Centered, Medium Size */}
-      <div className="relative z-10 w-full max-w-3xl mx-4">
+      {/* Animated Border Container */}
+      <div className="relative z-10 w-full max-w-3xl mx-auto">
         <canvas
           ref={borderCanvasRef}
           className="absolute inset-0 w-full h-full pointer-events-none"
           style={{ borderRadius: '16px' }}
         />
 
-        {/* Form Content - Fully Transparent Background */}
-        <div className="relative rounded-2xl p-8 m-0.75">
+        {/* Form Content - Dark Background */}
+        <div className="relative rounded-2xl p-4 sm:p-6 md:p-8 m-0.75 bg-[#0a0f1c]/90 backdrop-blur-sm border border-white/10">
           {showSuccess ? (
-            <div className="text-center bg-green-900/40 border border-green-500/50 rounded-2xl p-8 max-w-md mx-auto" style={{ backdropFilter: 'blur(10px)' }}>
-              <div className="text-5xl mb-4">✅</div>
-              <h3 className="text-2xl font-bold text-green-400 mb-2">Encrypted Successfully</h3>
-              <p className="text-zinc-300 text-[15px] leading-relaxed mb-6">
+            <div className="text-center bg-green-900/40 border border-green-500/50 rounded-2xl p-6 sm:p-8 max-w-md mx-auto backdrop-blur-sm">
+              <div className="text-4xl sm:text-5xl mb-4">✅</div>
+              <h3 className="text-xl sm:text-2xl font-bold text-green-400 mb-2">Encrypted Successfully</h3>
+              <p className="text-zinc-300 text-[14px] sm:text-[15px] leading-relaxed mb-6">
                 Your daily access key has been sent to your phone number via SMS, use that as your password.
               </p>
               <div className="text-zinc-400 text-sm mb-6">
@@ -456,129 +431,118 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
           ) : (
             <>
               {/* Header with Logos */}
-          <div className="flex items-center justify-center gap-6 mb-8">
-            {/* FUDMA Logo - Left */}
-            <div
-              ref={fudmaLogoRef}
-              className="w-14 h-14 rounded-full overflow-hidden shrink-0 border-2 border-green-500/50"
-              style={{ boxShadow: '0 0 15px rgba(34,197,94,0.3)' }}
-            />
-
-            {/* Center Text */}
-            <div className="text-center">
-              <p className="text-green-400 text-[18px] font-bold tracking-widest uppercase">FEDERAL UNIVERSITY DUTSINMA</p>
-              <h2 className="text-[28px] font-bold text-white tracking-tight mt-1">NUCAICE</h2>
-              <p className="text-green-400 text-[16px] font-semibold mt-1">Staff Registration Portal</p>
-            </div>
-
-            {/* AI Logo - Right */}
-            <div
-              ref={aiLogoRef}
-              className="w-14 h-14 rounded-full overflow-hidden shrink-0 border-2 border-cyan-400/50 flex items-center justify-center"
-              style={{ boxShadow: '0 0 15px rgba(34,211,238,0.3)' }}
-            />
-          </div>
-
-          {/* Form Fields - 3 Left, 3 Right Grid */}
-          <div className="grid grid-cols-2 gap-x-6 gap-y-5">
-            {/* LEFT COLUMN - 3 fields */}
-            <div className="space-y-5">
-              <div>
-                <label className="block text-green-500 text-[14px] font-bold uppercase tracking-wider mb-1.5">Staff ID</label>
-                <input
-                  type="text"
-                  value={staffId}
-                  onChange={(e) => setStaffId(e.target.value)}
-                  className="w-full bg-transparent border border-white/20 rounded-lg px-4 py-2.5 text-white text-[14px] placeholder-zinc-600 focus:outline-none transition-all green-shadow-input"
-                  placeholder="Enter Staff ID"
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
+                <div
+                  ref={fudmaLogoRef}
+                  className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full overflow-hidden shrink-0 border-2 border-green-500/50"
+                  style={{ boxShadow: '0 0 15px rgba(34,197,94,0.3)' }}
+                />
+                <div className="text-center">
+                  <p className="text-green-400 text-[11px] sm:text-[14px] md:text-[18px] font-bold tracking-widest uppercase leading-tight">FEDERAL UNIVERSITY DUTSINMA</p>
+                  <h2 className="text-[22px] sm:text-[24px] md:text-[28px] font-bold text-white tracking-tight mt-0.5 sm:mt-1">NUCAICE</h2>
+                  <p className="text-green-400 text-[13px] sm:text-[14px] md:text-[16px] font-semibold mt-0.5 sm:mt-1">Staff Registration Portal</p>
+                </div>
+                <div
+                  ref={aiLogoRef}
+                  className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 rounded-full overflow-hidden shrink-0 border-2 border-cyan-400/50 flex items-center justify-center"
+                  style={{ boxShadow: '0 0 15px rgba(34,211,238,0.3)' }}
                 />
               </div>
 
-              <div>
-                <label className="block text-green-500 text-[14px] font-bold uppercase tracking-wider mb-1.5">Email Address</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-transparent border border-white/20 rounded-lg px-4 py-2.5 text-white text-[14px] placeholder-zinc-600 focus:outline-none transition-all green-shadow-input"
-                  placeholder="Enter Email Address"
-                />
+              {/* Form Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-x-6 sm:gap-y-5">
+                <div className="space-y-4 sm:space-y-5">
+                  <div>
+                    <label className="block text-green-400 text-[12px] sm:text-[14px] font-bold uppercase tracking-wider mb-1.5">Staff ID</label>
+                    <input
+                      type="text"
+                      value={staffId}
+                      onChange={(e) => setStaffId(e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-white text-[13px] sm:text-[14px] placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all"
+                      placeholder="Enter Staff ID"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-green-400 text-[12px] sm:text-[14px] font-bold uppercase tracking-wider mb-1.5">Email Address</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-white text-[13px] sm:text-[14px] placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all"
+                      placeholder="Enter Email Address"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-green-400 text-[12px] sm:text-[14px] font-bold uppercase tracking-wider mb-1.5">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        if (val.length <= 11) setPhone(val);
+                      }}
+                      className="w-full bg-white/5 border border-white/20 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-white text-[13px] sm:text-[14px] placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all"
+                      placeholder="Enter 11-digit Phone Number"
+                      maxLength={11}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4 sm:space-y-5">
+                  <div>
+                    <label className="block text-green-400 text-[12px] sm:text-[14px] font-bold uppercase tracking-wider mb-1.5">Full Name</label>
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="w-full bg-white/5 border border-white/20 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-white text-[13px] sm:text-[14px] placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all"
+                      placeholder="Enter Full Name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-green-400 text-[12px] sm:text-[14px] font-bold uppercase tracking-wider mb-1.5">
+                      Encrypted Key <span className="text-amber-400 text-[10px] sm:text-[12px]">(Symbols Only)</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={encryptedKey}
+                      onChange={handleEncryptedKeyChange}
+                      className="w-full bg-white/5 border border-white/20 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-white text-[13px] sm:text-[14px] placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 font-mono transition-all"
+                      placeholder={`!@#$%^&*()_+-=[]{}|;':"\\",./<>?`}
+                    />
+                    <p className="text-zinc-500 text-[10px] sm:text-[11px] mt-1">Only special characters allowed. No letters or numbers.</p>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-green-500 text-[14px] font-bold uppercase tracking-wider mb-1.5">Phone Number</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, ''); // only allow numbers
-                    if (val.length <= 11) setPhone(val);
-                  }}
-                  className="w-full bg-transparent border border-white/20 rounded-lg px-4 py-2.5 text-white text-[14px] placeholder-zinc-600 focus:outline-none transition-all green-shadow-input"
-                  placeholder="Enter 11-digit Phone Number"
-                  maxLength={11}
-                />
-              </div>
-            </div>
+              {/* Error */}
+              {error && (
+                <div className="bg-red-500/20 border border-red-400/40 rounded-lg px-4 py-2.5 mt-4 sm:mt-5">
+                  <p className="text-red-300 text-[12px] sm:text-[13px] font-bold">{error}</p>
+                </div>
+              )}
 
-            {/* RIGHT COLUMN - 2 fields */}
-            <div className="space-y-5">
-              <div>
-                <label className="block text-green-500 text-[14px] font-bold uppercase tracking-wider mb-1.5">Full Name</label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full bg-transparent border border-white/20 rounded-lg px-4 py-2.5 text-white text-[14px] placeholder-zinc-600 focus:outline-none transition-all green-shadow-input"
-                  placeholder="Enter Full Name"
-                />
+              {/* Buttons */}
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 mt-6 sm:mt-8">
+                <button
+                  onClick={handleEncrypt}
+                  disabled={isSubmitting}
+                  className="w-full sm:w-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-2.5 sm:py-3 px-6 sm:px-8 rounded-lg transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:shadow-green-500/30 text-[13px] sm:text-[14px] disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Processing...' : '🔐 Encrypt & Register'}
+                </button>
+                <button
+                  onClick={onGoBack}
+                  className="w-full sm:w-auto bg-white/5 border border-white/10 hover:bg-white/10 text-zinc-300 font-bold py-2.5 sm:py-3 px-6 sm:px-8 rounded-lg transition-all duration-200 hover:scale-[1.02] text-[13px] sm:text-[14px]"
+                >
+                  ← Cancel / Go Back
+                </button>
               </div>
 
-              <div>
-                <label className="block text-green-500 text-[14px] font-bold uppercase tracking-wider mb-1.5">
-                  Encrypted Key <span className="text-amber-400 text-[12px]">(Symbols Only)</span>
-                </label>
-                <input
-                  type="password"
-                  value={encryptedKey}
-                  onChange={handleEncryptedKeyChange}
-                  className="w-full bg-transparent border border-white/20 rounded-lg px-4 py-2.5 text-white text-[14px] placeholder-zinc-600 focus:outline-none transition-all font-mono green-shadow-input"
-                  placeholder={`!@#$%^&*()_+-=[]{}|;':"\\",./<>?`}
-                />
-                <p className="text-zinc-500 text-[11px] mt-1">Only special characters allowed. No letters or numbers.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="bg-red-500/10 border border-red-400/30 rounded-lg px-4 py-2.5 mt-5">
-              <p className="text-red-400 text-[13px] font-bold">{error}</p>
-            </div>
-          )}
-
-          {/* Buttons - Encrypt Left, Back Right */}
-          <div className="flex justify-between items-center mt-8">
-            <button
-              onClick={handleEncrypt}
-              disabled={isSubmitting}
-              className="bg-linear-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-3 px-8 rounded-lg transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:shadow-green-500/20 text-[14px] disabled:opacity-50"
-            >
-              {isSubmitting ? 'Processing...' : '🔐 Encrypt & Register'}
-            </button>
-            <button
-              onClick={onGoBack}
-              className="bg-white/5 border border-white/10 hover:bg-white/10 text-zinc-300 font-bold py-3 px-8 rounded-lg transition-all duration-200 hover:scale-[1.02] text-[14px]"
-            >
-              ← Cancel / Go Back
-            </button>
-          </div>
-
-          {/* Footer */}
-          <p className="text-center text-zinc-500 text-[11px] mt-6">
-            © 2026 NUCAICE · FUDMA · Secure Registration Portal
-          </p>
-          </>
+              {/* Footer */}
+              <p className="text-center text-zinc-500 text-[10px] sm:text-[11px] mt-4 sm:mt-6">
+                © 2026 NUCAICE · FUDMA · Secure Registration Portal
+              </p>
+            </>
           )}
         </div>
       </div>

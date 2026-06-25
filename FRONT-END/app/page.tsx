@@ -9,8 +9,7 @@ import Dashboard from './PAGES/Dashboard';
 import { roles, roleColorMap, Role, Duty } from './PAGES/Roles';
 
 // ─────────────────────────────────────────────
-// All helper components remain unchanged
-// (RoleTitleCanvas, AnimatedSubmenu, HomeContent, MissionContent, RoleContent)
+// All helper components (fully implemented)
 // ─────────────────────────────────────────────
 
 function RoleTitleCanvas({
@@ -227,7 +226,7 @@ function HomeContent({
   return (
     <div className="h-full flex flex-col gap-4 overflow-hidden">
       {/* Letterhead with Rotating Logo */}
-      <div className={`bg-linear-to-r ${bgGradient} border ${borderColor} rounded-xl p-4 text-center shrink-0`}>
+      <div className={`home-letterhead bg-linear-to-r ${bgGradient} border ${borderColor} rounded-xl p-4 text-center shrink-0`}>
         <div className="flex items-center justify-center gap-4 mb-2">
           <div
             ref={logoRef}
@@ -249,9 +248,9 @@ function HomeContent({
       </div>
 
       {/* Memo details + body */}
-      <div className="flex gap-4 flex-1 overflow-hidden min-h-0">
+      <div className="memo-layout flex gap-4 flex-1 overflow-hidden min-h-0">
         {/* Left: Memo fields */}
-        <div className="flex flex-col gap-3 shrink-0 w-55">
+        <div className="memo-sidebar flex flex-col gap-3 shrink-0 w-55">
           <div className={`${bgCard} border ${borderColor} rounded-lg p-4`}>
             <div className="space-y-2 text-[15px]">
               <div>
@@ -292,7 +291,7 @@ function HomeContent({
           </p>
 
           {/* 2x2 Centered Grid */}
-          <div className="grid grid-cols-2 gap-4 shrink-0 max-w-3xl mx-auto w-full">
+          <div className="role-cards-grid grid grid-cols-2 gap-4 shrink-0 max-w-3xl mx-auto w-full">
             {roles.map((role) => {
               const c = roleColorMap[role.color];
               return (
@@ -318,7 +317,7 @@ function HomeContent({
           </div>
 
           {/* Core values */}
-          <div className="flex flex-wrap gap-2 justify-center shrink-0">
+          <div className="core-values-row flex flex-wrap gap-2 justify-center shrink-0">
             {[{ label: 'Excellence', emoji: '⭐' }, { label: 'Innovation', emoji: '💡' }, { label: 'Integrity', emoji: '🛡️' }, { label: 'Collaboration', emoji: '🤝' }, { label: 'Impact', emoji: '🚀' }].map((v) => (
               <span key={v.label} className={`px-3 py-1.5 ${coreValueBg} rounded-full ${coreValueText} text-[14px] font-bold flex items-center gap-1.5`}>
                 {v.emoji} {v.label}
@@ -327,7 +326,7 @@ function HomeContent({
           </div>
 
           {/* Centered Note */}
-          <div className={`max-w-3xl mx-auto w-full bg-linear-to-br ${noteBg} border ${noteBorder} rounded-xl overflow-hidden shrink-0`}>
+          <div className={`note-section max-w-3xl mx-auto w-full bg-linear-to-br ${noteBg} border ${noteBorder} rounded-xl overflow-hidden shrink-0`}>
             <div className={`${noteHeader} px-4 py-2.5 border-b`}>
               <h4 className={`font-bold ${noteHeaderText} uppercase tracking-widest text-[14px]`}>📋 NOTE — General Expectation for All Officers</h4>
             </div>
@@ -418,7 +417,7 @@ function MissionContent({ isDark }: { isDark: boolean }) {
 
   return (
     <div className="h-full flex flex-col gap-3 overflow-hidden">
-      <div className={`text-center ${isDark ? 'border-b border-white/10' : 'border-b border-slate-200'} pb-2 flex-shrink-0`}>
+      <div className={`mission-header text-center ${isDark ? 'border-b border-white/10' : 'border-b border-slate-200'} pb-2 flex-shrink-0`}>
         <div className="flex items-center justify-center gap-4 mb-2">
           <div
             ref={logoRef}
@@ -432,7 +431,7 @@ function MissionContent({ isDark }: { isDark: boolean }) {
         </div>
         <p className={`text-[22px] ${textCyan} font-mono uppercase tracking-widest mt-0.5 font-bold`}>Mission & Vision Statement</p>
       </div>
-      <div className="flex-1 grid grid-cols-2 gap-3 overflow-hidden min-h-0">
+      <div className="mission-grid flex-1 grid grid-cols-2 gap-3 overflow-hidden min-h-0">
         {/* MISSION */}
         <div className={`rounded-xl border ${isDark ? 'border-emerald-400/40' : 'border-emerald-300'} bg-gradient-to-br ${isDark ? 'from-emerald-900/40 to-emerald-800/20' : 'from-emerald-50 to-emerald-100/50'} overflow-hidden flex flex-col`} style={{ boxShadow: '0 14px 5px #05966922' }}>
           <div className={`bg-gradient-to-r ${isDark ? 'from-emerald-900/60 to-emerald-800/30' : 'from-emerald-100 to-emerald-200/50'} px-4 py-2 border-b ${isDark ? 'border-emerald-400/20' : 'border-emerald-300'} flex items-center gap-2 flex-shrink-0`}>
@@ -513,7 +512,7 @@ function RoleContent({
     <div className="h-full flex flex-col overflow-hidden gap-2">
       {/* WGL Title Banner */}
       <div
-        className={`flex-shrink-0 rounded-xl border overflow-hidden ${activeColors.bg} ${activeColors.border}`}
+        className={`role-detail-banner flex-shrink-0 rounded-xl border overflow-hidden ${activeColors.bg} ${activeColors.border}`}
         style={{ boxShadow: `0 4px 24px ${activeRole.gradientFrom}33` }}
       >
         <div className={`px-4 py-2 border-b ${activeColors.border} ${activeColors.headingBg}`}>
@@ -542,7 +541,7 @@ function RoleContent({
       {/* Duties Section */}
       <div className="flex-1 flex gap-2 overflow-hidden min-h-0 relative">
         <div
-          className={`flex-shrink-0 flex flex-col gap-1 overflow-y-auto transition-all duration-500 ${activeDutyIndex !== null ? 'w-[42%]' : 'w-full'}`}
+          className={`duty-list-container flex-shrink-0 flex flex-col gap-1 overflow-y-auto transition-all duration-500 ${activeDutyIndex !== null ? 'w-[42%]' : 'w-full'}`}
           style={{ scrollbarWidth: 'thin' }}
         >
           <div className={`flex-shrink-0 inline-block px-2 py-0.5 rounded text-[19px] font-bold uppercase tracking-widest ${activeColors.romanBg} w-fit`}>
@@ -583,7 +582,7 @@ function RoleContent({
         >
           {activeDutyIndex !== null && activeRole.duties[activeDutyIndex] && (
             <div
-              className={`h-full rounded-xl border p-4 flex flex-col gap-3 ${activeColors.bg} ${activeColors.border}`}
+              className={`duty-detail-panel h-full rounded-xl border p-4 flex flex-col gap-3 ${activeColors.bg} ${activeColors.border}`}
               style={{ boxShadow: `0 4px 24px ${activeRole.gradientFrom}33`, animation: 'slideInRight 0.35s cubic-bezier(0.4,0,0.2,1)' }}
             >
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -979,25 +978,9 @@ export default function NUCAICEPage() {
   const activeRole = roles.find((r) => r.id === activeRoleId) ?? null;
   const activeColors = activeRole ? roleColorMap[activeRole.color] : null;
 
-  /* ── Theme-aware classes ── */
-  const sidebarBg = isDark ? 'bg-[#0a0f1c]' : 'bg-white';
-  const sidebarBorder = isDark ? 'border-white/10' : 'border-slate-200';
-  const sidebarText = isDark ? 'text-white' : 'text-slate-900';
-  const sidebarMuted = isDark ? 'text-zinc-400' : 'text-slate-500';
-  const sidebarNavText = isDark ? 'text-zinc-300' : 'text-slate-700';
-  const sidebarNavHover = isDark ? 'hover:bg-white/5' : 'hover:bg-slate-100';
-  const sidebarDivider = isDark ? 'text-zinc-500' : 'text-slate-500';
-  const sidebarDividerBorder = isDark ? 'border-white/5' : 'border-slate-200';
-  const mobileHeaderBg = isDark ? 'bg-[#030712]/95' : 'bg-white/95';
-  const mobileHeaderBorder = isDark ? 'border-white/10' : 'border-slate-200';
-  const mobileHeaderText = isDark ? 'text-white' : 'text-slate-900';
-  const footerBg = isDark ? 'bg-white/5' : 'bg-slate-100';
-  const footerText = isDark ? 'text-zinc-400' : 'text-slate-600';
+  /* ── RENDER ────────────────────────────────── */
 
-  /* ─────────────────────────────────────────────
-     RENDER
-  ───────────────────────────────────────────── */
-
+  // 🔁 EARLY RETURNS – remove sidebar for Login / Registration / Dashboard / RoleSelection
   if (showDashboard && user) {
     return (
       <Dashboard
@@ -1024,6 +1007,32 @@ export default function NUCAICEPage() {
     );
   }
 
+  // 🆕 Early return for Login – no sidebar, no header, just the form
+  if (showLogin) {
+    return <Login onGoBack={handleGoBack} onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  // 🆕 Early return for Registration – no sidebar, no header, just the form
+  if (showRegistration) {
+    return <Registration onGoBack={handleGoBack} onGoToLogin={handleInternalOperations} />;
+  }
+
+  /* ── Otherwise, show the full layout with sidebar ── */
+
+  const sidebarBg = isDark ? 'bg-[#0a0f1c]' : 'bg-white';
+  const sidebarBorder = isDark ? 'border-white/10' : 'border-slate-200';
+  const sidebarText = isDark ? 'text-white' : 'text-slate-900';
+  const sidebarMuted = isDark ? 'text-zinc-400' : 'text-slate-500';
+  const sidebarNavText = isDark ? 'text-zinc-300' : 'text-slate-700';
+  const sidebarNavHover = isDark ? 'hover:bg-white/5' : 'hover:bg-slate-100';
+  const sidebarDivider = isDark ? 'text-zinc-500' : 'text-slate-500';
+  const sidebarDividerBorder = isDark ? 'border-white/5' : 'border-slate-200';
+  const mobileHeaderBg = isDark ? 'bg-[#030712]/95' : 'bg-white/95';
+  const mobileHeaderBorder = isDark ? 'border-white/10' : 'border-slate-200';
+  const mobileHeaderText = isDark ? 'text-white' : 'text-slate-900';
+  const footerBg = isDark ? 'bg-white/5' : 'bg-slate-100';
+  const footerText = isDark ? 'text-zinc-400' : 'text-slate-600';
+
   return (
     <div className={`h-screen overflow-hidden font-sans ${isDark ? 'dark bg-[#030712] text-white' : 'light bg-[#f8fafc] text-slate-900'}`}>
       <style>{`
@@ -1043,11 +1052,13 @@ export default function NUCAICEPage() {
         .content-exit { animation: contentExit 0.5s cubic-bezier(0.4,0,0.2,1) forwards; }
       `}</style>
 
+      {/* ── 3D Background Container ── */}
       <div id="bg-canvas-container" 
            className="fixed inset-0 z-0 pointer-events-none" 
            aria-hidden 
            style={{ background: isDark ? '#030712' : '#f8fafc' }} />
 
+      {/* Mobile Header */}
       <header className={`md:hidden fixed top-0 left-0 right-0 z-50 ${mobileHeaderBg} backdrop-blur-md border-b ${mobileHeaderBorder} flex items-center justify-between px-4 py-2.5`}>
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-label="Toggle navigation" className={`flex flex-col gap-1.5 ${mobileHeaderText}`}>
           <span className="block w-5 h-0.5 bg-current" /><span className="block w-5 h-0.5 bg-current" /><span className="block w-5 h-0.5 bg-current" />
@@ -1060,6 +1071,7 @@ export default function NUCAICEPage() {
       </header>
 
       <div className="flex h-screen overflow-hidden">
+        {/* Sidebar */}
         <nav className={`fixed top-0 bottom-0 left-0 z-40 flex flex-col border-r ${sidebarBg} ${sidebarBorder} transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
           style={{ width: '240px' }}>
 
