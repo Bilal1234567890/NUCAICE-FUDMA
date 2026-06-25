@@ -8,27 +8,24 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Get DATABASE_URL from environment
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://root:@localhost:3306/nucaice")
 
-# Create engine with SSL options if using Aiven
-# Check if we're using Aiven (host contains 'aivencloud.com')
-if "aivencloud.com" in SQLALCHEMY_DATABASE_URL.lower():
-    # For Aiven MySQL with SSL
+# Check if we are using Aiven (or any SSL-required MySQL)
+if "aivencloud.com" in SQLALCHEMY_DATABASE_URL:
+    # Use the CA certificate
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
         connect_args={
             "ssl": {
-                "ssl_mode": "REQUIRED"
+                "ca": "/opt/render/project/src/BACK-END/ca.pem"   # Path on Render
             }
         }
     )
 else:
-    # For local development
+    # Local development (no SSL)
     engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
 
 def get_db():
