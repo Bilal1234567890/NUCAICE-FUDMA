@@ -1,3 +1,9 @@
+import os
+import sys
+
+# Dynamically add the current 'api' directory to Python's search path for Vercel deployment
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
