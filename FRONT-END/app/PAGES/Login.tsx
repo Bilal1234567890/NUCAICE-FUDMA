@@ -349,12 +349,9 @@ export default function Login({ onGoBack, onLoginSuccess }: LoginProps) {
     setError('');
 
     try {
-      // 1. Add the smart environment check to support local backend execution automatically
-      const apiBase = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-        ? 'http://localhost:8000' 
-        : '';
+      // 👇 NEW: Use environment variable with fallback for local development
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-      // 2. Used template literal combining apiBase dynamically with the API string path
       const response = await fetch(`${apiBase}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

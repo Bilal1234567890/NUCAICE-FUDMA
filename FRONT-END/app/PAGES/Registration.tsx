@@ -384,12 +384,9 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
     setError('');
 
     try {
-      // 1. Check to detect local environment vs. live deployment automatically
-      const apiBase = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-        ? 'http://localhost:8000' 
-        : '';
+      // 👇 NEW: Use environment variable with fallback for local development
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-      // 2. Used template literals to combine apiBase with the path
       const response = await fetch(`${apiBase}/api/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
