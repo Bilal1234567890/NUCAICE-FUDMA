@@ -1,8 +1,14 @@
 import os
 import sys
 
-# Dynamically add the current 'api' directory to Python's search path for Vercel deployment
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Senior Developer move: Force the api directory to the absolute front of Python's search path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+# Log the runtime paths directly to your Vercel Dashboard for easy verification
+print(f"🚀 Python Working Directory: {os.getcwd()}")
+print(f"📦 Injected Lookup Path: {current_dir}")
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,7 +31,6 @@ except Exception as e:
 # ── Ensure new columns exist ──
 try:
     with engine.connect() as conn:
-        # MySQL syntax: add column if not exists
         conn.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS role_id VARCHAR(50)")
         conn.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS duty_index INT")
         conn.commit()
@@ -35,7 +40,6 @@ except Exception as e:
 
 app = FastAPI(title="NUCAICE Staff Portal API")
 
-# Configure CORS for Next.js frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -44,12 +48,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Health Check ──
 @app.get("/health")
 def health_check():
     return {"status": "ok", "message": "NUCAICE API is running"}
 
-# ── Scheduler: Send daily keys at midnight ──
 def send_daily_keys():
     db = database.SessionLocal()
     try:
@@ -78,7 +80,6 @@ def start_scheduler():
     scheduler.start()
     print("✅ Daily key scheduler started.")
 
-# ── Register Staff ──
 @app.post("/api/register", status_code=status.HTTP_201_CREATED)
 def register_staff(staff: schemas.StaffCreate, db: Session = Depends(get_db)):
     try:
@@ -106,7 +107,6 @@ def register_staff(staff: schemas.StaffCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_staff)
     
-    # Send welcome SMS
     message = (
         f"NUCAICE Registration Success!\n"
         f"Daily Access Key: {access_key}\n"
@@ -121,7 +121,6 @@ def register_staff(staff: schemas.StaffCreate, db: Session = Depends(get_db)):
         "sms_sent": sms_result.get("success", False)
     }
 
-# ── Login Staff ──
 @app.post("/api/login")
 def login_staff(credentials: schemas.StaffLogin, db: Session = Depends(get_db)):
     db_staff = db.query(models.Staff).filter(models.Staff.staff_id == credentials.user_id).first()
@@ -143,15 +142,12 @@ def login_staff(credentials: schemas.StaffLogin, db: Session = Depends(get_db)):
         }
     }
 
-# ── Select Role ──
 @app.post("/api/select-role")
 def select_role(request: schemas.SelectRoleRequest, db: Session = Depends(get_db)):
-    # Find the staff
     staff = db.query(models.Staff).filter(models.Staff.staff_id == request.staff_id).first()
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
     
-    # If duty_index is None, user wants to be Head of Role. Check if head already exists.
     if request.duty_index is None:
         existing_head = db.query(models.Staff).filter(
             models.Staff.role_id == request.role_id,
@@ -160,7 +156,6 @@ def select_role(request: schemas.SelectRoleRequest, db: Session = Depends(get_db
         if existing_head:
             raise HTTPException(status_code=400, detail="Head of Role already assigned to another staff.")
     
-    # Update staff
     staff.role_id = request.role_id
     staff.duty_index = request.duty_index
     db.commit()
