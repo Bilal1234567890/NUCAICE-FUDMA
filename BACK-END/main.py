@@ -1,11 +1,3 @@
-import os
-import sys
-
-# ── PATH PATCH: Force Vercel to find internal modules ──
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
-
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -27,6 +19,7 @@ except Exception as e:
 # ── Ensure new columns exist ──
 try:
     with engine.connect() as conn:
+        # MySQL syntax: add column if not exists
         conn.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS role_id VARCHAR(50)")
         conn.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS duty_index INT")
         conn.commit()
