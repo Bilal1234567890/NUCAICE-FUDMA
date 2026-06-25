@@ -1,12 +1,14 @@
 fastapi
 uvicorn
-pymysql
 python-dotenv
 pydantic[email]
 passlib
 bcrypt
 requests
+fastapi
+uvicorn
 sqlalchemy
 apscheduler
-termii-python
 cryptography
+pymysql
+requests
