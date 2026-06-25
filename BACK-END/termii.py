@@ -2,9 +2,13 @@ import random
 import string
 import requests
 import os
+import time
+from functools import wraps
 from datetime import datetime, timedelta
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-# ── CRITICAL: Load .env file BEFORE reading environment variables ──
+# ── Load .env ──
 try:
     from dotenv import load_dotenv
     env_path = os.path.join(os.path.dirname(__file__), '.env')
@@ -18,7 +22,7 @@ except ImportError:
     print(f"[{datetime.now()}] ❌ python-dotenv not installed!")
     raise
 
-# ── Load configuration from .env ──
+# ── Config ──
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 TERMII_API_KEY = os.getenv("TERMII_API_KEY", "")
 TERMII_SENDER_ID = os.getenv("TERMII_SENDER_ID", "")
@@ -26,62 +30,68 @@ TERMII_BASE_URL = os.getenv("TERMII_BASE_URL", "https://v3.api.termii.com")
 
 
 def format_phone(phone: str) -> str:
-    """
-    Convert Nigerian phone number to international format.
-    """
-    # DEBUG: Show what we received
-    print(f"[{datetime.now()}] 🔍 format_phone() INPUT: '{phone}' (type: {type(phone).__name__})")
-    
+    """Convert Nigerian phone number to international format."""
     digits = ''.join(c for c in phone if c.isdigit())
-    print(f"[{datetime.now()}] 🔍 format_phone() DIGITS ONLY: '{digits}' (length: {len(digits)})")
-
     if digits.startswith('0') and len(digits) == 11:
-        result = '234' + digits[1:]
-        print(f"[{datetime.now()}] 🔍 format_phone() OUTPUT: '{result}'")
-        return result
-
+        return '234' + digits[1:]
     if digits.startswith('234') and len(digits) == 13:
-        print(f"[{datetime.now()}] 🔍 format_phone() OUTPUT (already intl): '{digits}'")
         return digits
-
     if len(digits) == 10:
-        result = '234' + digits
-        print(f"[{datetime.now()}] 🔍 format_phone() OUTPUT (10 digits): '{result}'")
-        return result
-
-    print(f"[{datetime.now()}] 🔍 format_phone() OUTPUT (unrecognized): '{digits}'")
-    return digits
+        return '234' + digits
+    return digits  # fallback
 
 
 def generate_access_key(length: int = 8) -> str:
-    """Generate a random code with numbers, letters, and symbols."""
     chars = string.ascii_letters + string.digits + "!@#$%^&*"
     return ''.join(random.SystemRandom().choice(chars) for _ in range(length))
 
 
+# ── Retry decorator for failures ──
+def retry_on_failure(max_retries=3, delay=0.5, backoff=2):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            retries = 0
+            current_delay = delay
+            while retries <= max_retries:
+                try:
+                    result = func(*args, **kwargs)
+                    if result.get("success"):
+                        return result
+                    # If API returned error (but not exception), retry
+                    if retries < max_retries:
+                        print(f"⚠️ SMS attempt {retries+1} failed. Retrying in {current_delay}s...")
+                        time.sleep(current_delay)
+                        current_delay *= backoff
+                        retries += 1
+                    else:
+                        return result
+                except Exception as e:
+                    if retries == max_retries:
+                        raise
+                    print(f"⚠️ Exception: {e}. Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+                    retries += 1
+            return {"success": False, "reason": "max_retries_exceeded"}
+        return wrapper
+    return decorator
+
+
+@retry_on_failure(max_retries=3, delay=0.5, backoff=2)
 def send_sms_termii(to: str, message: str) -> dict:
     """
     Send SMS via Termii using the APPROVED NUCAICE sender ID.
+    Returns dict with 'success' key.
     """
     formatted_phone = format_phone(to)
 
-    # Validate API key
+    # Validate config
     if not TERMII_API_KEY:
-        print(f"[{datetime.now()}] ❌ TERMII_API_KEY not found in .env")
-        return {"success": False, "reason": "no_api_key", "phone": formatted_phone}
-
-    # Validate sender ID
+        return {"success": False, "reason": "no_api_key"}
     if not TERMII_SENDER_ID:
-        print(f"[{datetime.now()}] ❌ TERMII_SENDER_ID not found in .env")
-        return {"success": False, "reason": "no_sender_id", "phone": formatted_phone}
+        return {"success": False, "reason": "no_sender_id"}
 
-    print(f"\n[{datetime.now()}] 📋 Configuration:")
-    print(f"   API Key: {'*' * 10}{TERMII_API_KEY[-6:]}")
-    print(f"   Sender ID: '{TERMII_SENDER_ID}' ✅ APPROVED")
-    print(f"   Base URL: {TERMII_BASE_URL}")
-    print(f"   📞 RECEIVER: '{formatted_phone}'")
-
-    # ── Send SMS with Approved Sender ID ──
     url = f"{TERMII_BASE_URL}/api/sms/send"
     payload = {
         "api_key": TERMII_API_KEY,
@@ -93,43 +103,46 @@ def send_sms_termii(to: str, message: str) -> dict:
     }
 
     try:
-        print(f"[{datetime.now()}] 📤 Sending SMS to '{formatted_phone}' with sender '{TERMII_SENDER_ID}'...")
-        print(f"[{datetime.now()}] 📤 PAYLOAD: {payload}")
-        response = requests.post(url, json=payload, timeout=30)
+        # Create a session with automatic retries on connection errors
+        session = requests.Session()
+        retries = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[500, 502, 503, 504],
+            allowed_methods=["POST"]
+        )
+        adapter = HTTPAdapter(max_retries=retries)
+        session.mount('https://', adapter)
+        session.mount('http://', adapter)
 
+        response = session.post(url, json=payload, timeout=15)
         try:
             data = response.json()
         except:
             data = {"raw": response.text}
 
-        print(f"[{datetime.now()}] 📥 Response [{response.status_code}]: {data}")
-
         if response.status_code == 200:
-            print(f"[{datetime.now()}] ✅ SMS sent successfully to '{formatted_phone}'!")
             return {
                 "success": True,
                 "method": "sender_id",
                 "sender": TERMII_SENDER_ID,
                 "data": data
             }
-
-        error_msg = str(data.get("message", "")).lower()
-        print(f"[{datetime.now()}] ❌ SMS failed: {error_msg}")
-        return {
-            "success": False,
-            "reason": "api_error",
-            "status_code": response.status_code,
-            "data": data
-        }
-
-    except requests.exceptions.RequestException as e:
-        print(f"[{datetime.now()}] ❌ Request failed: {e}")
-        return {"success": False, "reason": "request_error", "error": str(e)}
+        else:
+            error_msg = str(data.get("message", "")).lower()
+            return {
+                "success": False,
+                "reason": "api_error",
+                "status_code": response.status_code,
+                "data": data
+            }
+    except Exception as e:
+        # Will be retried by the decorator
+        raise  # re-raise to trigger retry
 
 
 def send_daily_access_key(phone: str, staff_name: str = "Staff") -> dict:
     code = generate_access_key(8)
-
     message = (
         f"NUCAICE Daily Access Key\n"
         f"Hello {staff_name},\n"
@@ -137,14 +150,11 @@ def send_daily_access_key(phone: str, staff_name: str = "Staff") -> dict:
         f"Valid: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
         f"Expires in 24hrs. Do not share."
     )
-
     result = send_sms_termii(phone, message)
-
     result["generated_code"] = code
     result["formatted_phone"] = format_phone(phone)
     result["expires_at"] = (datetime.now() + timedelta(hours=24)).isoformat()
     result["staff_name"] = staff_name
-
     return result
 
 
@@ -153,26 +163,21 @@ if __name__ == "__main__":
     print("=" * 65)
     print("  NUCAICE Termii SMS — Sender ID APPROVED ✅")
     print("=" * 65)
-
     print(f"\n📞 Phone Format Test:")
     print(f"   09031852972 → {format_phone('09031852972')}")
-
     print(f"\n🔧 Environment Check:")
     print(f"   DATABASE_URL: {'✅ Set' if DATABASE_URL else '❌ Missing'}")
     print(f"   TERMII_API_KEY: {'✅ Set' if TERMII_API_KEY else '❌ Missing'}")
     print(f"   TERMII_SENDER_ID: {'✅ ' + TERMII_SENDER_ID if TERMII_SENDER_ID else '❌ Missing'}")
     print(f"   TERMII_BASE_URL: {TERMII_BASE_URL}")
-
     print(f"\n📤 Sending Daily Access Key...")
     result = send_daily_access_key("09031852972", "Muhammad")
-
     print(f"\n📋 Final Result:")
     print(f"   Success: {result.get('success')}")
     print(f"   Method: {result.get('method', 'N/A')}")
     print(f"   Generated Code: {result.get('generated_code')}")
     print(f"   Phone: {result.get('formatted_phone')}")
     print(f"   Expires: {result.get('expires_at')}")
-
     if not result.get("success"):
         print(f"\n   ❌ Reason: {result.get('reason')}")
         print(f"   📄 API Response: {result.get('data')}")

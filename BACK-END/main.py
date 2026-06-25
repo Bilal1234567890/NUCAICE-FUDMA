@@ -9,17 +9,16 @@ import termii
 from datetime import datetime
 from database import engine, get_db
 
-# ── CRITICAL: Create database tables on startup ──
+# ── Create tables ──
 try:
     models.Base.metadata.create_all(bind=engine)
     print("✅ Database tables created/verified successfully.")
 except Exception as e:
     print(f"❌ Failed to create database tables: {e}")
 
-# ── Ensure new columns exist ──
+# ── Ensure new columns ──
 try:
     with engine.connect() as conn:
-        # MySQL syntax: add column if not exists
         conn.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS role_id VARCHAR(50)")
         conn.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS duty_index INT")
         conn.commit()
@@ -29,7 +28,7 @@ except Exception as e:
 
 app = FastAPI(title="NUCAICE Staff Portal API")
 
-# Configure CORS for Next.js frontend
+# ── CORS ──
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -59,6 +58,7 @@ def send_daily_keys():
                 f"Valid: {datetime.now().strftime('%Y-%m-%d')}\n"
                 f"Expires in 24hrs. Do not share."
             )
+            # This will retry automatically thanks to the decorator
             termii.send_sms_termii(staff.phone, message)
     except Exception as e:
         print(f"❌ Scheduler error: {e}")
@@ -75,18 +75,35 @@ def start_scheduler():
 # ── Register Staff ──
 @app.post("/api/register", status_code=status.HTTP_201_CREATED)
 def register_staff(staff: schemas.StaffCreate, db: Session = Depends(get_db)):
-    try:
-        db_staff = db.query(models.Staff).filter(
-            (models.Staff.staff_id == staff.staff_id) | (models.Staff.email == staff.email)
-        ).first()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    
+    # Check existing user
+    db_staff = db.query(models.Staff).filter(
+        (models.Staff.staff_id == staff.staff_id) | (models.Staff.email == staff.email)
+    ).first()
     if db_staff:
         raise HTTPException(status_code=400, detail="Staff ID or Email already registered")
-        
+    
+    # Generate access key
     access_key = termii.generate_access_key()
     
+    # ── Attempt to send SMS BEFORE saving to DB ──
+    message = (
+        f"NUCAICE Registration Success!\n"
+        f"Daily Access Key: {access_key}\n"
+        f"Valid: {datetime.now().strftime('%Y-%m-%d')}\n"
+        f"Expires in 24hrs."
+    )
+    try:
+        sms_result = termii.send_sms_termii(staff.phone, message)
+    except Exception as e:
+        # If the retry decorator ultimately fails, it raises an exception
+        raise HTTPException(status_code=500, detail=f"SMS delivery failed: {str(e)}")
+    
+    if not sms_result.get("success"):
+        # SMS could not be sent – do NOT register the user
+        error_detail = sms_result.get("reason", "unknown error")
+        raise HTTPException(status_code=400, detail=f"Could not send access key: {error_detail}")
+    
+    # ── SMS sent successfully – now save user ──
     new_staff = models.Staff(
         staff_id=staff.staff_id,
         full_name=staff.full_name,
@@ -95,37 +112,24 @@ def register_staff(staff: schemas.StaffCreate, db: Session = Depends(get_db)):
         encrypted_key=staff.encrypted_key,
         daily_access_key=access_key
     )
-    
     db.add(new_staff)
     db.commit()
     db.refresh(new_staff)
     
-    # Send welcome SMS
-    message = (
-        f"NUCAICE Registration Success!\n"
-        f"Daily Access Key: {access_key}\n"
-        f"Valid: {datetime.now().strftime('%Y-%m-%d')}\n"
-        f"Expires in 24hrs."
-    )
-    sms_result = termii.send_sms_termii(staff.phone, message)
-    print(f"📤 SMS Result: {sms_result}")
-    
+    print(f"✅ Staff registered: {staff.staff_id} – SMS sent.")
     return {
         "message": "Staff registered successfully",
-        "sms_sent": sms_result.get("success", False)
+        "sms_sent": True
     }
 
 # ── Login Staff ──
 @app.post("/api/login")
 def login_staff(credentials: schemas.StaffLogin, db: Session = Depends(get_db)):
     db_staff = db.query(models.Staff).filter(models.Staff.staff_id == credentials.user_id).first()
-    
     if not db_staff:
         raise HTTPException(status_code=400, detail="Invalid User ID or Daily Access Key")
-        
     if db_staff.daily_access_key != credentials.daily_access_key:
         raise HTTPException(status_code=400, detail="Invalid User ID or Daily Access Key")
-        
     return {
         "message": "Login successful",
         "user": {
@@ -140,12 +144,9 @@ def login_staff(credentials: schemas.StaffLogin, db: Session = Depends(get_db)):
 # ── Select Role ──
 @app.post("/api/select-role")
 def select_role(request: schemas.SelectRoleRequest, db: Session = Depends(get_db)):
-    # Find the staff
     staff = db.query(models.Staff).filter(models.Staff.staff_id == request.staff_id).first()
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
-    
-    # If duty_index is None, user wants to be Head of Role. Check if head already exists.
     if request.duty_index is None:
         existing_head = db.query(models.Staff).filter(
             models.Staff.role_id == request.role_id,
@@ -153,13 +154,10 @@ def select_role(request: schemas.SelectRoleRequest, db: Session = Depends(get_db
         ).first()
         if existing_head:
             raise HTTPException(status_code=400, detail="Head of Role already assigned to another staff.")
-    
-    # Update staff
     staff.role_id = request.role_id
     staff.duty_index = request.duty_index
     db.commit()
     db.refresh(staff)
-    
     return {
         "message": "Role assigned successfully",
         "user": {
