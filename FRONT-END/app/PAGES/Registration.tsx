@@ -337,8 +337,9 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
       return;
     }
 
-    if (!/^PS\d+$/.test(staffId)) {
-      setError('Staff ID must start with "PS" followed by numbers (e.g. PS12345)');
+    // UPDATED: Accept PS followed by 1 to 5 digits only
+    if (!/^PS\d{1,5}$/.test(staffId)) {
+      setError('Staff ID must start with "PS" followed by 1 to 5 digits (e.g. PS12, PS123, PS1234, PS12345)');
       return;
     }
 
@@ -459,7 +460,7 @@ export default function Registration({ onGoBack, onGoToLogin }: RegistrationProp
                       value={staffId}
                       onChange={(e) => setStaffId(e.target.value)}
                       className="w-full bg-white/5 border border-white/20 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-white text-[13px] sm:text-[14px] placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all"
-                      placeholder="Enter Staff ID"
+                      placeholder="Enter Staff ID (e.g. PS12, PS123, PS12345)"
                     />
                   </div>
                   <div>
