@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -6,8 +6,10 @@ import models
 import schemas
 import database
 import termii
-from datetime import datetime
+from datetime import datetime, timedelta
 from database import engine, get_db
+from rate_limiter import LoginRateLimiter
+import time
 
 # ── Create tables ──
 try:
@@ -58,7 +60,6 @@ def send_daily_keys():
                 f"Valid: {datetime.now().strftime('%Y-%m-%d')}\n"
                 f"Expires in 24hrs. Do not share."
             )
-            # This will retry automatically thanks to the decorator
             termii.send_sms_termii(staff.phone, message)
     except Exception as e:
         print(f"❌ Scheduler error: {e}")
@@ -95,11 +96,9 @@ def register_staff(staff: schemas.StaffCreate, db: Session = Depends(get_db)):
     try:
         sms_result = termii.send_sms_termii(staff.phone, message)
     except Exception as e:
-        # If the retry decorator ultimately fails, it raises an exception
         raise HTTPException(status_code=500, detail=f"SMS delivery failed: {str(e)}")
     
     if not sms_result.get("success"):
-        # SMS could not be sent – do NOT register the user
         error_detail = sms_result.get("reason", "unknown error")
         raise HTTPException(status_code=400, detail=f"Could not send access key: {error_detail}")
     
@@ -124,12 +123,52 @@ def register_staff(staff: schemas.StaffCreate, db: Session = Depends(get_db)):
 
 # ── Login Staff ──
 @app.post("/api/login")
-def login_staff(credentials: schemas.StaffLogin, db: Session = Depends(get_db)):
-    db_staff = db.query(models.Staff).filter(models.Staff.staff_id == credentials.user_id).first()
-    if not db_staff:
-        raise HTTPException(status_code=400, detail="Invalid User ID or Daily Access Key")
-    if db_staff.daily_access_key != credentials.daily_access_key:
-        raise HTTPException(status_code=400, detail="Invalid User ID or Daily Access Key")
+def login_staff(
+    credentials: schemas.StaffLogin,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    user_id = credentials.user_id.strip()
+
+    # ── Create rate limiter with database session ──
+    rate_limiter = LoginRateLimiter(db, max_attempts=3, lockout_seconds=600)
+
+    # 1. Check if the user is currently locked out
+    if rate_limiter.is_locked(user_id):
+        # Get the lock expiry from the database
+        record = db.query(models.LoginAttempt).filter(models.LoginAttempt.user_id == user_id).first()
+        if record and record.locked_until:
+            remaining = int((record.locked_until - datetime.utcnow()).total_seconds())
+            remaining = max(0, remaining)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={"seconds_remaining": remaining},
+                headers={"Retry-After": str(remaining)}
+            )
+
+    # 2. Find the staff member
+    db_staff = db.query(models.Staff).filter(models.Staff.staff_id == user_id).first()
+
+    # 3. Validate credentials
+    valid = db_staff is not None and db_staff.daily_access_key == credentials.daily_access_key
+
+    if not valid:
+        remaining = rate_limiter.record_attempt(user_id)
+        if remaining > 0:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={"seconds_remaining": remaining},
+                headers={"Retry-After": str(remaining)}
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid credentials"
+            )
+
+    # 4. Success: reset attempts
+    rate_limiter.reset(user_id)
+
     return {
         "message": "Login successful",
         "user": {

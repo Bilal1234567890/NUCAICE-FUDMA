@@ -21,10 +21,46 @@ export default function Login({ onGoBack, onLoginSuccess }: LoginProps) {
   const borderCanvasRef = useRef<HTMLCanvasElement>(null);
   const fudmaLogoRef = useRef<HTMLDivElement>(null);
   const aiLogoRef = useRef<HTMLDivElement>(null);
+
   const [userId, setUserId] = useState('');
   const [dailyAccessKey, setDailyAccessKey] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ── Rate‑limiting states ──
+  const [isLocked, setIsLocked] = useState(false);
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
+
+  // ── Countdown timer effect ──
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isLocked && secondsRemaining > 0) {
+      interval = setInterval(() => {
+        setSecondsRemaining((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval!);
+            setIsLocked(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isLocked, secondsRemaining]);
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const resetLock = () => {
+    setIsLocked(false);
+    setSecondsRemaining(0);
+  };
 
   /* ── Three.js Background ── */
   useEffect(() => {
@@ -314,11 +350,14 @@ export default function Login({ onGoBack, onLoginSuccess }: LoginProps) {
     return () => cancelAnimationFrame(animId);
   }, []);
 
+  // ── MAIN AUTHENTICATION HANDLER ──
   const handleAuthenticate = async () => {
     if (!userId || !dailyAccessKey) {
       setError('Please fill in all fields');
       return;
     }
+    if (isLocked) return;
+
     setIsSubmitting(true);
     setError('');
 
@@ -329,15 +368,38 @@ export default function Login({ onGoBack, onLoginSuccess }: LoginProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: userId,
-          daily_access_key: dailyAccessKey
+          daily_access_key: dailyAccessKey,
         }),
       });
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || 'Authentication failed');
+        // ── 429 Too Many Requests (rate‑limit) ──
+        if (response.status === 429) {
+          // Extract seconds_remaining from the response
+          const remaining = data.seconds_remaining || data.detail?.seconds_remaining || 600;
+          setIsLocked(true);
+          setSecondsRemaining(remaining);
+          setError(`Too many failed attempts. Please wait ${formatTime(remaining)} before trying again.`);
+          setIsSubmitting(false);
+          return;
+        }
+
+        // ── Handle other errors (including [object Object] fix) ──
+        let errorMessage = 'Authentication failed';
+        if (typeof data.detail === 'string') {
+          errorMessage = data.detail;
+        } else if (typeof data.detail === 'object' && data.detail !== null) {
+          // If detail is an object, try to extract a meaningful message
+          errorMessage = data.detail.message || data.detail.error || JSON.stringify(data.detail);
+        } else if (typeof data.message === 'string') {
+          errorMessage = data.message;
+        }
+        throw new Error(errorMessage);
       }
 
+      // Success: reset lock state and proceed
+      resetLock();
       alert('Authentication successful! Welcome ' + data.user.full_name);
       if (onLoginSuccess) {
         onLoginSuccess(data.user as User);
@@ -352,9 +414,11 @@ export default function Login({ onGoBack, onLoginSuccess }: LoginProps) {
     }
   };
 
+  const isDisabled = isLocked || isSubmitting;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#030712]/80 backdrop-blur-sm">
-      {/* Three.js Background (behind the form) */}
+      {/* Three.js Background */}
       <canvas ref={bgCanvasRef} className="fixed inset-0 z-0 pointer-events-none" aria-hidden />
 
       {/* Animated Border Container */}
@@ -394,7 +458,8 @@ export default function Login({ onGoBack, onLoginSuccess }: LoginProps) {
                 type="text"
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
-                className="w-full bg-white/5 border border-white/20 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-white text-[13px] sm:text-[14px] placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all"
+                disabled={isDisabled}
+                className="w-full bg-white/5 border border-white/20 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-white text-[13px] sm:text-[14px] placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Enter User ID"
               />
             </div>
@@ -404,16 +469,31 @@ export default function Login({ onGoBack, onLoginSuccess }: LoginProps) {
                 type="password"
                 value={dailyAccessKey}
                 onChange={(e) => setDailyAccessKey(e.target.value)}
-                className="w-full bg-white/5 border border-white/20 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-white text-[13px] sm:text-[14px] placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 font-mono transition-all"
+                disabled={isDisabled}
+                className="w-full bg-white/5 border border-white/20 rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-white text-[13px] sm:text-[14px] placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 font-mono transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Enter Daily Access Key"
               />
             </div>
           </div>
 
-          {/* Error */}
+          {/* Error / Lockout Message */}
           {error && (
-            <div className="bg-red-500/20 border border-red-400/40 rounded-lg px-4 py-2.5 mt-4 sm:mt-5 max-w-md mx-auto">
-              <p className="text-red-300 text-[12px] sm:text-[13px] font-bold">{error}</p>
+            <div
+              className={`mt-4 sm:mt-5 max-w-md mx-auto px-4 py-2.5 rounded-lg border ${
+                isLocked && secondsRemaining > 0
+                  ? 'bg-red-600/20 border-red-500/50'
+                  : 'bg-red-500/20 border-red-400/40'
+              }`}
+            >
+              <p
+                className={`text-[12px] sm:text-[13px] font-bold ${
+                  isLocked && secondsRemaining > 0 ? 'text-red-400' : 'text-red-300'
+                }`}
+              >
+                {isLocked && secondsRemaining > 0
+                  ? `Too many failed attempts. Please wait ${formatTime(secondsRemaining)} before trying again.`
+                  : error}
+              </p>
             </div>
           )}
 
@@ -421,14 +501,15 @@ export default function Login({ onGoBack, onLoginSuccess }: LoginProps) {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 mt-6 sm:mt-8 max-w-md mx-auto">
             <button
               onClick={handleAuthenticate}
-              disabled={isSubmitting}
-              className="w-full sm:w-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-2.5 sm:py-3 px-6 sm:px-8 rounded-lg transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:shadow-green-500/30 text-[13px] sm:text-[14px] disabled:opacity-50"
+              disabled={isDisabled}
+              className="w-full sm:w-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-2.5 sm:py-3 px-6 sm:px-8 rounded-lg transition-all duration-200 hover:scale-[1.02] hover:shadow-lg hover:shadow-green-500/30 text-[13px] sm:text-[14px] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               {isSubmitting ? 'Authenticating...' : '🔐 Authenticate'}
             </button>
             <button
               onClick={onGoBack}
-              className="w-full sm:w-auto bg-white/5 border border-white/10 hover:bg-white/10 text-zinc-300 font-bold py-2.5 sm:py-3 px-6 sm:px-8 rounded-lg transition-all duration-200 hover:scale-[1.02] text-[13px] sm:text-[14px]"
+              disabled={isDisabled}
+              className="w-full sm:w-auto bg-white/5 border border-white/10 hover:bg-white/10 text-zinc-300 font-bold py-2.5 sm:py-3 px-6 sm:px-8 rounded-lg transition-all duration-200 hover:scale-[1.02] text-[13px] sm:text-[14px] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               ← Cancel / Go Back
             </button>
