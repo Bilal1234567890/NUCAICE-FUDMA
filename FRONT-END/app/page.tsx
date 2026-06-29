@@ -226,7 +226,7 @@ function HomeContent({
   return (
     <div className="h-full flex flex-col gap-4 overflow-hidden">
       {/* Letterhead with Rotating Logo */}
-      <div className={`home-letterhead bg-linear-to-r ${bgGradient} border ${borderColor} rounded-xl p-4 text-center shrink-0`}>
+      <div className={`bg-linear-to-r ${bgGradient} border ${borderColor} rounded-xl p-4 text-center shrink-0`}>
         <div className="flex items-center justify-center gap-4 mb-2">
           <div
             ref={logoRef}
@@ -248,9 +248,9 @@ function HomeContent({
       </div>
 
       {/* Memo details + body */}
-      <div className="memo-layout flex gap-4 flex-1 overflow-hidden min-h-0">
+      <div className="flex gap-4 flex-1 overflow-hidden min-h-0">
         {/* Left: Memo fields */}
-        <div className="memo-sidebar flex flex-col gap-3 shrink-0 w-55">
+        <div className="flex flex-col gap-3 shrink-0 w-55">
           <div className={`${bgCard} border ${borderColor} rounded-lg p-4`}>
             <div className="space-y-2 text-[15px]">
               <div>
@@ -291,7 +291,7 @@ function HomeContent({
           </p>
 
           {/* 2x2 Centered Grid */}
-          <div className="role-cards-grid grid grid-cols-2 gap-4 shrink-0 max-w-3xl mx-auto w-full">
+          <div className="grid grid-cols-2 gap-4 shrink-0 max-w-3xl mx-auto w-full">
             {roles.map((role) => {
               const c = roleColorMap[role.color];
               return (
@@ -317,7 +317,7 @@ function HomeContent({
           </div>
 
           {/* Core values */}
-          <div className="core-values-row flex flex-wrap gap-2 justify-center shrink-0">
+          <div className="flex flex-wrap gap-2 justify-center shrink-0">
             {[{ label: 'Excellence', emoji: '⭐' }, { label: 'Innovation', emoji: '💡' }, { label: 'Integrity', emoji: '🛡️' }, { label: 'Collaboration', emoji: '🤝' }, { label: 'Impact', emoji: '🚀' }].map((v) => (
               <span key={v.label} className={`px-3 py-1.5 ${coreValueBg} rounded-full ${coreValueText} text-[14px] font-bold flex items-center gap-1.5`}>
                 {v.emoji} {v.label}
@@ -326,7 +326,7 @@ function HomeContent({
           </div>
 
           {/* Centered Note */}
-          <div className={`note-section max-w-3xl mx-auto w-full bg-linear-to-br ${noteBg} border ${noteBorder} rounded-xl overflow-hidden shrink-0`}>
+          <div className={`max-w-3xl mx-auto w-full bg-linear-to-br ${noteBg} border ${noteBorder} rounded-xl overflow-hidden shrink-0`}>
             <div className={`${noteHeader} px-4 py-2.5 border-b`}>
               <h4 className={`font-bold ${noteHeaderText} uppercase tracking-widest text-[14px]`}>📋 NOTE — General Expectation for All Officers</h4>
             </div>
@@ -417,7 +417,7 @@ function MissionContent({ isDark }: { isDark: boolean }) {
 
   return (
     <div className="h-full flex flex-col gap-3 overflow-hidden">
-      <div className={`mission-header text-center ${isDark ? 'border-b border-white/10' : 'border-b border-slate-200'} pb-2 flex-shrink-0`}>
+      <div className={`text-center ${isDark ? 'border-b border-white/10' : 'border-b border-slate-200'} pb-2 flex-shrink-0`}>
         <div className="flex items-center justify-center gap-4 mb-2">
           <div
             ref={logoRef}
@@ -431,7 +431,7 @@ function MissionContent({ isDark }: { isDark: boolean }) {
         </div>
         <p className={`text-[22px] ${textCyan} font-mono uppercase tracking-widest mt-0.5 font-bold`}>Mission & Vision Statement</p>
       </div>
-      <div className="mission-grid flex-1 grid grid-cols-2 gap-3 overflow-hidden min-h-0">
+      <div className="flex-1 grid grid-cols-2 gap-3 overflow-hidden min-h-0">
         {/* MISSION */}
         <div className={`rounded-xl border ${isDark ? 'border-emerald-400/40' : 'border-emerald-300'} bg-gradient-to-br ${isDark ? 'from-emerald-900/40 to-emerald-800/20' : 'from-emerald-50 to-emerald-100/50'} overflow-hidden flex flex-col`} style={{ boxShadow: '0 14px 5px #05966922' }}>
           <div className={`bg-gradient-to-r ${isDark ? 'from-emerald-900/60 to-emerald-800/30' : 'from-emerald-100 to-emerald-200/50'} px-4 py-2 border-b ${isDark ? 'border-emerald-400/20' : 'border-emerald-300'} flex items-center gap-2 flex-shrink-0`}>
@@ -512,7 +512,7 @@ function RoleContent({
     <div className="h-full flex flex-col overflow-hidden gap-2">
       {/* WGL Title Banner */}
       <div
-        className={`role-detail-banner flex-shrink-0 rounded-xl border overflow-hidden ${activeColors.bg} ${activeColors.border}`}
+        className={`flex-shrink-0 rounded-xl border overflow-hidden ${activeColors.bg} ${activeColors.border}`}
         style={{ boxShadow: `0 4px 24px ${activeRole.gradientFrom}33` }}
       >
         <div className={`px-4 py-2 border-b ${activeColors.border} ${activeColors.headingBg}`}>
@@ -541,7 +541,7 @@ function RoleContent({
       {/* Duties Section */}
       <div className="flex-1 flex gap-2 overflow-hidden min-h-0 relative">
         <div
-          className={`duty-list-container flex-shrink-0 flex flex-col gap-1 overflow-y-auto transition-all duration-500 ${activeDutyIndex !== null ? 'w-[42%]' : 'w-full'}`}
+          className={`flex-shrink-0 flex flex-col gap-1 overflow-y-auto transition-all duration-500 ${activeDutyIndex !== null ? 'w-[42%]' : 'w-full'}`}
           style={{ scrollbarWidth: 'thin' }}
         >
           <div className={`flex-shrink-0 inline-block px-2 py-0.5 rounded text-[19px] font-bold uppercase tracking-widest ${activeColors.romanBg} w-fit`}>
@@ -582,7 +582,7 @@ function RoleContent({
         >
           {activeDutyIndex !== null && activeRole.duties[activeDutyIndex] && (
             <div
-              className={`duty-detail-panel h-full rounded-xl border p-4 flex flex-col gap-3 ${activeColors.bg} ${activeColors.border}`}
+              className={`h-full rounded-xl border p-4 flex flex-col gap-3 ${activeColors.bg} ${activeColors.border}`}
               style={{ boxShadow: `0 4px 24px ${activeRole.gradientFrom}33`, animation: 'slideInRight 0.35s cubic-bezier(0.4,0,0.2,1)' }}
             >
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -984,7 +984,6 @@ export default function NUCAICEPage() {
   if (showDashboard && user) {
     return (
       <Dashboard
-        staffId={user.staff_id}
         fullName={user.full_name}
         roleId={user.role_id!}
         dutyIndex={user.duty_index ?? null}
