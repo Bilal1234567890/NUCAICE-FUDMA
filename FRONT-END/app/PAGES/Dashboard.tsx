@@ -2,29 +2,29 @@
 
 import React, { useState } from 'react';
 import { roles, roleColorMap, Duty } from './Roles';
+import EncryptedKeysManager from './EncryptedKeysManager';  // ✅ added import
 
 interface DashboardProps {
+  staffId: string;              // ✅ added
   fullName: string;
   roleId: string;
   dutyIndex: number | null;
   onLogout: () => void;
 }
 
-export default function Dashboard({ fullName, roleId, dutyIndex, onLogout }: DashboardProps) {
+export default function Dashboard({ staffId, fullName, roleId, dutyIndex, onLogout }: DashboardProps) {
   const role = roles.find(r => r.id === roleId);
   const colors = role ? roleColorMap[role.color] : null;
   const isHead = dutyIndex === null;
 
-  // ── Compute initial tab (must be before any early return) ──
+  // ── Compute initial tab ──
   const getInitialTab = () => {
     if (!role) return 'overview';
     return isHead ? 'overview' : role.duties[dutyIndex!]?.romanNumeral || 'overview';
   };
 
-  // ── useState called unconditionally ──
   const [activeTab, setActiveTab] = useState<string>(getInitialTab());
 
-  // ── Early return after all hooks ──
   if (!role || !colors) {
     return <div className="text-white">Role not found.</div>;
   }
@@ -515,6 +515,8 @@ export default function Dashboard({ fullName, roleId, dutyIndex, onLogout }: Das
       id: duty.romanNumeral,
       label: `${duty.romanNumeral}. ${duty.title}`,
     })),
+    // ── ✅ NEW: add encrypted keys tab only for CDO Head ──
+    ...(role.id === 'cdo' && isHead ? [{ id: 'encrypted-keys', label: '🔑 Encrypted Keys' }] : []),
   ];
 
   return (
@@ -563,10 +565,13 @@ export default function Dashboard({ fullName, roleId, dutyIndex, onLogout }: Das
 
         <div className={`bg-white/5 backdrop-blur-sm rounded-xl p-6 border ${colors.border}`}>
           {activeTab === 'overview' && renderOverview()}
-          {activeTab !== 'overview' && (() => {
+          {activeTab !== 'overview' && activeTab !== 'encrypted-keys' && (() => {
             const duty = role.duties.find(d => d.romanNumeral === activeTab);
             return duty ? renderDutyContent(duty) : <p className="text-zinc-400">Select a duty.</p>;
           })()}
+          {activeTab === 'encrypted-keys' && role.id === 'cdo' && isHead && (
+            <EncryptedKeysManager staffId={staffId} />
+          )}
         </div>
       </div>
 

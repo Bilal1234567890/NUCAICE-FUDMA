@@ -635,6 +635,8 @@ interface User {
   duty_index?: number | null;
 }
 
+const USER_STORAGE_KEY = 'nucaice_user';
+
 export default function NUCAICEPage() {
   const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [currentPage, setCurrentPage] = useState<'home' | 'mission' | 'role' | 'registration' | 'login'>('home');
@@ -650,6 +652,26 @@ export default function NUCAICEPage() {
   const [user, setUser] = useState<User | null>(null);
   const [contentExiting, setContentExiting] = useState(false);
   const cleanupRef = useRef<(() => void) | null>(null);
+
+  // ── Restore session from localStorage on mount ──
+  useEffect(() => {
+    const stored = localStorage.getItem(USER_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setUser(parsed);
+        if (parsed.role_id) {
+          setShowDashboard(true);
+        } else {
+          setShowRoleSelection(true);
+        }
+        setShowLogin(false);
+        setShowRegistration(false);
+      } catch (e) {
+        // ignore – invalid data
+      }
+    }
+  }, []);
 
   /* ── Theme Toggle Effect ─────────────────── */
   useEffect(() => {
@@ -934,6 +956,7 @@ export default function NUCAICEPage() {
     setShowDashboard(false);
     setShowRoleSelection(false);
     setUser(null);
+    localStorage.removeItem(USER_STORAGE_KEY);
     setCurrentPage('home');
   }, []);
 
@@ -948,6 +971,7 @@ export default function NUCAICEPage() {
 
   const handleLoginSuccess = useCallback((userData: User) => {
     setUser(userData);
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
     if (userData.role_id) {
       setShowDashboard(true);
       setShowLogin(false);
@@ -962,7 +986,9 @@ export default function NUCAICEPage() {
   const handleRoleSelected = useCallback((roleId: string, dutyIndex: number | null) => {
     setUser((prev) => {
       if (!prev) return null;
-      return { ...prev, role_id: roleId, duty_index: dutyIndex };
+      const updated = { ...prev, role_id: roleId, duty_index: dutyIndex };
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
     });
     setShowRoleSelection(false);
     setShowDashboard(true);
@@ -972,6 +998,7 @@ export default function NUCAICEPage() {
     setShowDashboard(false);
     setShowRoleSelection(false);
     setUser(null);
+    localStorage.removeItem(USER_STORAGE_KEY);
     setShowLogin(true);
   }, []);
 
@@ -984,6 +1011,7 @@ export default function NUCAICEPage() {
   if (showDashboard && user) {
     return (
       <Dashboard
+        staffId={user.staff_id}
         fullName={user.full_name}
         roleId={user.role_id!}
         dutyIndex={user.duty_index ?? null}
@@ -1001,6 +1029,7 @@ export default function NUCAICEPage() {
           setShowRoleSelection(false);
           setShowLogin(true);
           setUser(null);
+          localStorage.removeItem(USER_STORAGE_KEY);
         }}
       />
     );

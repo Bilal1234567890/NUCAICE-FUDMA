@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from database import engine, get_db
 from rate_limiter import LoginRateLimiter
 import time
+import random
+import string
 
 # ── Create tables ──
 try:
@@ -23,8 +25,9 @@ try:
     with engine.connect() as conn:
         conn.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS role_id VARCHAR(50)")
         conn.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS duty_index INT")
+        conn.execute("ALTER TABLE staff ADD COLUMN IF NOT EXISTS last_encrypted_key_generation DATETIME")
         conn.commit()
-        print("✅ Added role_id and duty_index columns if missing.")
+        print("✅ Added role_id, duty_index, and last_encrypted_key_generation columns if missing.")
 except Exception as e:
     print(f"⚠️ Could not add columns: {e}")
 
@@ -73,17 +76,83 @@ def start_scheduler():
     scheduler.start()
     print("✅ Daily key scheduler started.")
 
+# ── Seed master encrypted key on startup ──
+@app.on_event("startup")
+def seed_master_key():
+    db = database.SessionLocal()
+    try:
+        master_key = "!@#$%^&*()_+!@#$%^&*()_+"
+        existing = db.query(models.EncryptedKey).filter(models.EncryptedKey.encrypted_key == master_key).first()
+        if not existing:
+            new_key = models.EncryptedKey(
+                encrypted_key=master_key,
+                valid=True,
+                invalid=False,
+                used_by=None,
+                used_time=None
+            )
+            db.add(new_key)
+            db.commit()
+            print("✅ Master encrypted key seeded successfully.")
+        else:
+            print("ℹ️ Master encrypted key already exists.")
+    except Exception as e:
+        print(f"❌ Failed to seed master key: {e}")
+    finally:
+        db.close()
+
 # ── Register Staff ──
 @app.post("/api/register", status_code=status.HTTP_201_CREATED)
 def register_staff(staff: schemas.StaffCreate, db: Session = Depends(get_db)):
-    # Check existing user
-    db_staff = db.query(models.Staff).filter(
-        (models.Staff.staff_id == staff.staff_id) | (models.Staff.email == staff.email)
+    # ── Check Staff ID duplicate ──
+    if db.query(models.Staff).filter(models.Staff.staff_id == staff.staff_id).first():
+        raise HTTPException(status_code=400, detail="Staff ID already exists")
+
+    # ── Check Email duplicate ──
+    if db.query(models.Staff).filter(models.Staff.email == staff.email).first():
+        raise HTTPException(status_code=400, detail="Email already exists")
+
+    # ── Check Phone duplicate ──
+    if db.query(models.Staff).filter(models.Staff.phone == staff.phone).first():
+        raise HTTPException(status_code=400, detail="Phone number already exists")
+
+    # ── Ensure the master key exists in the encrypted_keys table ──
+    master_key = "!@#$%^&*()_+!@#$%^&*()_+"
+    if staff.encrypted_key == master_key:
+        master_record = db.query(models.EncryptedKey).filter(
+            models.EncryptedKey.encrypted_key == master_key
+        ).first()
+        if not master_record:
+            master_record = models.EncryptedKey(
+                encrypted_key=master_key,
+                valid=True,
+                invalid=False,
+                used_by=None,
+                used_time=None
+            )
+            db.add(master_record)
+            db.commit()
+            print("✅ Master key inserted on the fly.")
+
+    # ── Validate encrypted key against the encrypted_keys table ──
+    key_record = db.query(models.EncryptedKey).filter(
+        models.EncryptedKey.encrypted_key == staff.encrypted_key
     ).first()
-    if db_staff:
-        raise HTTPException(status_code=400, detail="Staff ID or Email already registered")
-    
-    # Generate access key
+    if not key_record:
+        raise HTTPException(status_code=400, detail="Invalid encrypted key. Please use a valid generated key.")
+    if not key_record.valid:
+        raise HTTPException(status_code=400, detail="This encrypted key has already been used.")
+    if key_record.invalid:
+        raise HTTPException(status_code=400, detail="This encrypted key is no longer valid.")
+
+    # ── Mark key as used ──
+    key_record.valid = False
+    key_record.invalid = True
+    key_record.used_by = staff.staff_id
+    key_record.used_time = datetime.utcnow()
+    db.commit()
+
+    # ── Generate access key ──
     access_key = termii.generate_access_key()
     
     # ── Attempt to send SMS BEFORE saving to DB ──
@@ -108,7 +177,7 @@ def register_staff(staff: schemas.StaffCreate, db: Session = Depends(get_db)):
         full_name=staff.full_name,
         email=staff.email,
         phone=staff.phone,
-        encrypted_key=staff.encrypted_key,
+        encrypted_key=staff.encrypted_key,   # store the key they used
         daily_access_key=access_key
     )
     db.add(new_staff)
@@ -129,13 +198,9 @@ def login_staff(
     db: Session = Depends(get_db)
 ):
     user_id = credentials.user_id.strip()
-
-    # ── Create rate limiter with database session ──
     rate_limiter = LoginRateLimiter(db, max_attempts=3, lockout_seconds=600)
 
-    # 1. Check if the user is currently locked out
     if rate_limiter.is_locked(user_id):
-        # Get the lock expiry from the database
         record = db.query(models.LoginAttempt).filter(models.LoginAttempt.user_id == user_id).first()
         if record and record.locked_until:
             remaining = int((record.locked_until - datetime.utcnow()).total_seconds())
@@ -146,10 +211,7 @@ def login_staff(
                 headers={"Retry-After": str(remaining)}
             )
 
-    # 2. Find the staff member
     db_staff = db.query(models.Staff).filter(models.Staff.staff_id == user_id).first()
-
-    # 3. Validate credentials
     valid = db_staff is not None and db_staff.daily_access_key == credentials.daily_access_key
 
     if not valid:
@@ -166,7 +228,6 @@ def login_staff(
                 detail="Invalid credentials"
             )
 
-    # 4. Success: reset attempts
     rate_limiter.reset(user_id)
 
     return {
@@ -207,3 +268,68 @@ def select_role(request: schemas.SelectRoleRequest, db: Session = Depends(get_db
             "duty_index": staff.duty_index,
         }
     }
+
+# ── Generate Encrypted Keys (only CDO Head) ──
+@app.post("/api/generate-encrypted-keys")
+def generate_encrypted_keys(
+    req: schemas.GenerateKeysRequest,
+    db: Session = Depends(get_db)
+):
+    staff = db.query(models.Staff).filter(models.Staff.staff_id == req.staff_id).first()
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff not found")
+    
+    # Only allow CDO Head (role_id='cdo' and duty_index IS NULL)
+    if staff.role_id != 'cdo' or staff.duty_index is not None:
+        raise HTTPException(status_code=403, detail="Only the Head of CDO can generate encrypted keys.")
+
+    # Check cooldown: 5 hours
+    now = datetime.utcnow()
+    if staff.last_encrypted_key_generation:
+        elapsed = (now - staff.last_encrypted_key_generation).total_seconds()
+        if elapsed < 5 * 3600:  # 5 hours
+            remaining = int(5 * 3600 - elapsed)
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={"seconds_remaining": remaining}
+            )
+
+    # Generate 10 keys
+    symbol_set = "!@#$%^&*()_+"
+    keys = []
+    for _ in range(10):
+        length = random.choice([4, 6])  # 4 or 6 characters
+        key = ''.join(random.choices(symbol_set, k=length))
+        # Ensure uniqueness (if collision, regenerate)
+        while db.query(models.EncryptedKey).filter(models.EncryptedKey.encrypted_key == key).first():
+            key = ''.join(random.choices(symbol_set, k=length))
+        new_key = models.EncryptedKey(
+            encrypted_key=key,
+            valid=True,
+            invalid=False,
+            used_by=None,
+            used_time=None
+        )
+        db.add(new_key)
+        keys.append(key)
+    
+    # Update last generation timestamp
+    staff.last_encrypted_key_generation = now
+    db.commit()
+
+    return {"keys": keys, "generated_at": now.isoformat()}
+
+# ── Get all encrypted keys (for CDO Head dashboard) ──
+@app.get("/api/encrypted-keys")
+def get_encrypted_keys(
+    staff_id: str,
+    db: Session = Depends(get_db)
+):
+    staff = db.query(models.Staff).filter(models.Staff.staff_id == staff_id).first()
+    if not staff:
+        raise HTTPException(status_code=404, detail="Staff not found")
+    if staff.role_id != 'cdo' or staff.duty_index is not None:
+        raise HTTPException(status_code=403, detail="Only the Head of CDO can view encrypted keys.")
+
+    keys = db.query(models.EncryptedKey).order_by(models.EncryptedKey.id.desc()).all()
+    return keys

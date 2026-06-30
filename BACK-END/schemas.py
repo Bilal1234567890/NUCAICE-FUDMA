@@ -1,6 +1,7 @@
 # schemas.py
 from pydantic import BaseModel, EmailStr
 from typing import Optional
+from datetime import datetime
 
 class StaffCreate(BaseModel):
     staff_id: str
@@ -26,4 +27,18 @@ class StaffResponse(BaseModel):
 class SelectRoleRequest(BaseModel):
     staff_id: str
     role_id: str
-    duty_index: Optional[int] = None   # None means Head of Role
+    duty_index: Optional[int] = None
+
+class EncryptedKeyResponse(BaseModel):
+    id: int
+    encrypted_key: str
+    valid: bool
+    used_by: Optional[str] = None
+    used_time: Optional[datetime] = None
+    generated_time: datetime
+
+    class Config:
+        from_attributes = True
+
+class GenerateKeysRequest(BaseModel):
+    staff_id: str   # the CDO Head staff_id
